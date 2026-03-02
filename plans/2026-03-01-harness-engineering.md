@@ -66,12 +66,29 @@ This plan applies harness engineering principles to the uni repository for Claud
 - [x] Cross-platform rules documented in folder-local CLAUDE.md files
 - [x] Common pitfalls documented in `docs/dev/scala3-conventions.md`
 
+### 6. Self-Feedback Loop via Stop Hook
+
+**Problem**: Agents declare "done" without running compile/test/format. The verification workflow in CLAUDE.md is a suggestion, not enforcement.
+
+**Solution**: A Stop hook fires when Claude is about to finish. It checks whether Scala files were modified, and if so, blocks the stop and tells Claude to run the verification workflow. The `stop_hook_active` guard prevents infinite loops — Claude gets one nudge, not an endless cycle.
+
+```
+Claude works → "done" → Stop hook → modified .scala files?
+  ├─ No  → exit 0 → Claude stops
+  └─ Yes → exit 2 + "run verification workflow" → Claude continues
+             └─ (stop_hook_active=true on retry → exit 0 → Claude stops)
+```
+
+**Done**:
+- [x] `.claude/hooks/stop-verify.sh` — checks for uncommitted Scala changes, reminds about verification
+- [x] `.claude/settings.json` — wires the Stop hook
+
 ## Future Improvements
 
-### Phase 2: Hooks & Automated Feedback
-- [ ] Add Claude Code hooks for pre-commit format checking
-- [ ] Add a post-task review hook using a subagent with critical mindset
-- [ ] Consider a SessionStart hook to run `./sbt compile` on session start
+### Phase 2: Richer Hooks
+- [ ] Add a prompt-based Stop hook that uses an LLM to review code quality (type: "prompt")
+- [ ] Add PostToolUse hook on Write/Edit to auto-run `scalafmt` on changed files
+- [ ] Consider a SessionStart hook to run `./sbt compile` as a warm-up
 
 ### Phase 3: Background Quality Agents
 - [ ] Periodic stale-documentation detection (are instructions still accurate?)
